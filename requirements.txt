@@ -1,0 +1,8 @@
+tensorflow[and-cuda]==2.18.0
+numpy
+pandas
+scikit-learn
+matplotlib
+fastapi
+uvicorn
+python-multipart
