@@ -1,3 +1,4 @@
+import os
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -6,6 +7,7 @@ from fastapi.responses import HTMLResponse, Response
 from app.agents import MultiAgentPredictionPipeline
 from app.predict import (
     DISCLAIMER,
+    NETWORKS,
     get_available_networks,
     get_model_path,
     load_prediction_model,
@@ -125,6 +127,10 @@ def health_check():
         "networks": {
             network: str(get_model_path(network))
             for network in get_available_networks()
+        },
+        "model_urls_configured": {
+            network: bool(os.getenv(config["url_env"]))
+            for network, config in NETWORKS.items()
         },
         "loaded_models": sorted(model_cache),
         "vlm_provider": "ollama",

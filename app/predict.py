@@ -77,6 +77,8 @@ def get_model_path(network: str | None = None) -> Path:
         return Path(default_env_path)
 
     path = model_storage_path(*config["path"])
+    if os.getenv(config["url_env"]):
+        return path
     if path.exists():
         return path
     return model_storage_path(*config["fallback_path"])
