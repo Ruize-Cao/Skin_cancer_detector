@@ -1,0 +1,14 @@
+venv/
+__pycache__/
+*.py[cod]
+.git/
+
+dataset/
+Training_Sets/
+Training_Sets_Archive/
+results/
+app_outputs/
+
+.env
+.DS_Store
+~$*.docx

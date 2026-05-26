@@ -91,6 +91,12 @@ If port 8000 is busy:
 uvicorn app.api:app --reload --port 8001
 ```
 
+For a lightweight frontend-only deployment, run:
+
+```bash
+INFERENCE_API_URL=https://your-huggingface-space.hf.space uvicorn app.frontend:app --reload
+```
+
 ## Train A Model
 
 ```bash
@@ -140,5 +146,16 @@ Training_Sets/DenseNet121/D_next/best_model.keras    -> DenseNet121/best_model.k
 
 The deployed app can download these model files from Hugging Face when local
 model files are missing.
+
+## Deployment Split
+
+The project can be deployed as two smaller services:
+
+```text
+Hugging Face Space: app.api runs TensorFlow inference and loads the models
+Render/Vercel:      app.frontend serves the web UI and forwards images to Space
+```
+
+Set `INFERENCE_API_URL` on Render or Vercel to the Hugging Face Space URL.
 
 View `Training_Report.docx` for more information.

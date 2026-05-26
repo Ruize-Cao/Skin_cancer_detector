@@ -1,4 +1,4 @@
-from app.api import app
+from app.frontend import app
 
 
-"""Vercel FastAPI entrypoint."""
+"""Vercel frontend/proxy entrypoint."""
