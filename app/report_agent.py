@@ -132,6 +132,11 @@ def _vlm_text(result: dict[str, Any]) -> str:
             f"{' / ' + vlm['model'] if vlm.get('model') else ''}): "
             f"{vlm['description']} This is a visual description only, not a diagnosis."
         )
+    if "disabled" in str(vlm.get("reason", "")).lower():
+        return (
+            "VLM image description is disabled for this cloud deployment. "
+            "The report still includes CNN prediction results and local image feature extraction."
+        )
     return (
         "VLM analysis was not run for this request. "
         f"Reason: {vlm.get('reason', 'not available')}"

@@ -52,6 +52,21 @@ class ReportAgentTests(unittest.TestCase):
         self.assertTrue(pdf.startswith(b"%PDF-1.4"))
         self.assertIn(b"%%EOF", pdf)
 
+    def test_report_summarizes_disabled_vlm_cleanly(self):
+        report = generate_markdown_report(
+            {
+                "prediction": "NV",
+                "confidence": 0.8,
+                "vlm_analysis": {
+                    "available": False,
+                    "reason": "VLM is disabled for this deployment.",
+                },
+            }
+        )
+
+        self.assertIn("VLM image description is disabled", report)
+        self.assertNotIn("Reason:", report)
+
 
 if __name__ == "__main__":
     unittest.main()

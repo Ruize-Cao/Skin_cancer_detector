@@ -39,8 +39,17 @@ class VLMImageDescriptionAgent:
     def __init__(self, model: str | None = None):
         self.model = model or os.getenv("OLLAMA_VLM_MODEL", "llava")
         self.url = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
+        self.enabled = os.getenv("VLM_ENABLED", "true").lower() not in {"0", "false", "no"}
 
     def run(self, image_bytes: bytes, content_type: str | None) -> dict[str, Any]:
+        if not self.enabled:
+            return {
+                "available": False,
+                "provider": "ollama",
+                "model": self.model,
+                "reason": "VLM is disabled for this deployment.",
+            }
+
         image_b64 = base64.b64encode(image_bytes).decode("ascii")
         payload = {
             "model": self.model,

@@ -14,6 +14,13 @@ class AgentTests(unittest.TestCase):
         self.assertEqual(result["provider"], "ollama")
         self.assertIn("offline", result["reason"])
 
+    def test_vlm_agent_can_be_disabled_for_cloud_deployments(self):
+        with patch.dict("os.environ", {"VLM_ENABLED": "false"}):
+            result = VLMImageDescriptionAgent().run(b"fake-image", "image/jpeg")
+
+        self.assertFalse(result["available"])
+        self.assertIn("disabled", result["reason"].lower())
+
     def test_vlm_agent_returns_ollama_description(self):
         class FakeResponse:
             def __enter__(self):
