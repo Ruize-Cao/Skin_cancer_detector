@@ -118,38 +118,4 @@ Training output is saved to:
 Training_Sets/<network>/<run_name>/
 ```
 
-## Quick API Test
-
-```bash
-curl http://127.0.0.1:8000/health
-curl -F "file=@lesion.jpg" -F "network=ResNet50" http://127.0.0.1:8000/predict
-curl -F "file=@lesion.jpg" -F "network=Ensemble" http://127.0.0.1:8000/predict
-```
-
-## GitHub / Cloud Deploy
-
-Do not commit `venv/`, `dataset/`, old training runs, or archived results. The
-three active model files are allowed through `.gitignore` and should be tracked
-with Git LFS:
-
-```text
-Training_Sets/EfficientNetB3/T_next/best_model.keras
-Training_Sets/ResNet50/R_next/best_model.keras
-Training_Sets/DenseNet121/D_next/best_model.keras
-```
-
-Render start command:
-
-```bash
-python -m uvicorn app.api:app --host 0.0.0.0 --port $PORT
-```
-
-For VLM descriptions, the deployed service also needs access to Ollama/LLaVA via
-`OLLAMA_URL` and `OLLAMA_VLM_MODEL`.
-
-## Verify
-
-```bash
-./venv/bin/python -m py_compile app/*.py training/*.py tests/*.py
-./venv/bin/python -m unittest discover
-```
+View Taining_Report for more information
