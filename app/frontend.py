@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, Response
 from app.report_agent import generate_markdown_report, markdown_to_pdf_bytes
 
 
-"""Lightweight frontend/proxy app for Render or Vercel deployments."""
+"""Lightweight frontend/proxy app for Render deployments."""
 
 app = FastAPI(title="skin_cancer_detector_frontend")
 

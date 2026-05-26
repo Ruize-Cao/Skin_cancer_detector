@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: skin-cancer-detector
+    env: python
+    buildCommand: pip install -r requirements-frontend.txt
+    startCommand: uvicorn app.frontend:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: INFERENCE_API_URL
+        sync: false

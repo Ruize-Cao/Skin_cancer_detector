@@ -158,4 +158,20 @@ Render:             app.frontend serves the web UI and forwards images to Space
 
 Set `INFERENCE_API_URL` on Render to the Hugging Face Space URL.
 
+Render should run only the lightweight frontend:
+
+```text
+Build Command: pip install -r requirements-frontend.txt
+Start Command: uvicorn app.frontend:app --host 0.0.0.0 --port $PORT
+```
+
+After deployment, open `/health`. A correct Render frontend returns:
+
+```json
+{"status":"ok","mode":"frontend_proxy","inference_api_configured":true}
+```
+
+If `/health` returns model paths or `loaded_models`, Render is still running
+`app.api` instead of `app.frontend`.
+
 View `Training_Report.docx` for more information.
