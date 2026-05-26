@@ -45,7 +45,26 @@ prediction probabilities.
 Predicted classes:
 
 ```text
-AKIEC, BCC, BKL, DF, NV, MEL, VASC
+AKIEC (Actinic Keratoses and Intraepithelial Carcinoma)
+- Precancerous / early malignant skin lesion caused by long-term sun exposure.
+
+BCC (Basal Cell Carcinoma)
+- The most common type of skin cancer; slow-growing malignant tumor.
+
+BKL (Benign Keratosis-like Lesions)
+- Benign keratosis-related skin lesions such as seborrheic keratosis.
+
+DF (Dermatofibroma)
+- Benign fibrous skin tumor commonly found on the legs.
+
+NV (Melanocytic Nevi)
+- Common benign moles formed by melanocyte cells.
+
+MEL (Melanoma)
+- Highly dangerous malignant skin cancer with strong metastatic potential.
+
+VASC (Vascular Lesions)
+- Benign skin lesions related to blood vessels, such as angiomas.
 ```
 
 ## Main Technologies
@@ -90,12 +109,6 @@ Open:
 http://127.0.0.1:8000
 ```
 
-If port 8000 is busy:
-
-```bash
-uvicorn app.api:app --reload --port 8001
-```
-
 ## VLM Availability
 
 Local deployment can use Ollama + LLaVA for VLM image-description testing when
@@ -103,12 +116,6 @@ Ollama is running on the same machine. In the cloud deployment, VLM is currently
 disabled because the project does not call a hosted VLM API. The online version
 still supports CNN prediction, local image feature extraction, safety text, and
 PDF report generation.
-
-For the lightweight Render frontend, run:
-
-```bash
-INFERENCE_API_URL=https://your-huggingface-space.hf.space uvicorn app.frontend:app --reload
-```
 
 ## Train A Model
 
@@ -141,14 +148,6 @@ Training_Sets/<network>/<run_name>/
 
 The trained `.keras` model files are large, so they are not stored directly in
 the GitHub repository. After training, upload the active models to Hugging Face
-with:
-
-```bash
-pip install huggingface_hub
-hf auth login
-python upload_models.py
-```
-
 The script uploads:
 
 ```text
@@ -177,23 +176,5 @@ User browser
 Render stays lightweight and does not load TensorFlow models. Hugging Face Space
 runs TensorFlow inference, downloads the hosted model files when needed, and
 returns the prediction result to Render.
-
-Set `INFERENCE_API_URL` on Render to the Hugging Face Space URL.
-
-Render should run only the lightweight frontend:
-
-```text
-Build Command: pip install -r requirements-frontend.txt
-Start Command: uvicorn app.frontend:app --host 0.0.0.0 --port $PORT
-```
-
-After deployment, open `/health`. A correct Render frontend returns:
-
-```json
-{"status":"ok","mode":"frontend_proxy","inference_api_configured":true}
-```
-
-If `/health` returns model paths or `loaded_models`, Render is still running
-`app.api` instead of `app.frontend`.
 
 View `Training_Report.docx` for more information.
