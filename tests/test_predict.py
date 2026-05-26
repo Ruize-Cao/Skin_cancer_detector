@@ -17,6 +17,7 @@ from app.predict import (
     get_available_networks,
     get_model_path,
     ensure_model_file,
+    is_valid_keras_file,
     normalize_network,
     describe_uploaded_image,
     predict_image,
@@ -138,6 +139,16 @@ class PredictTests(unittest.TestCase):
                     ensure_model_file(model_path, "EfficientNetB3")
 
             self.assertEqual(model_path.read_bytes(), b"model-bytes")
+
+    def test_lfs_pointer_is_not_treated_as_valid_model(self):
+        with TemporaryDirectory() as tmp_dir:
+            model_path = Path(tmp_dir) / "best_model.keras"
+            model_path.write_text(
+                "version https://git-lfs.github.com/spec/v1\n",
+                encoding="utf-8",
+            )
+
+            self.assertFalse(is_valid_keras_file(model_path))
 
 
 if __name__ == "__main__":

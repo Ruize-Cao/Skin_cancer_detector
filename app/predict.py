@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import urllib.request
+import zipfile
 
 import numpy as np
 import tensorflow as tf
@@ -84,14 +85,17 @@ def load_prediction_model(model_path: Path | None = None, network: str | None = 
 
     path = model_path or get_model_path(network)
     ensure_model_file(path, network)
-    if not path.exists():
+    if not is_valid_keras_file(path):
         return None
-    return tf.keras.models.load_model(path, compile=False)
+    try:
+        return tf.keras.models.load_model(path, compile=False)
+    except (OSError, ValueError):
+        return None
 
 
 def ensure_model_file(path: Path, network: str) -> None:
     """Download a missing model from an external URL configured in the environment."""
-    if path.exists() or network == ENSEMBLE_NETWORK:
+    if is_valid_keras_file(path) or network == ENSEMBLE_NETWORK:
         return
 
     url = os.getenv(NETWORKS[network]["url_env"])
@@ -117,6 +121,11 @@ def ensure_model_file(path: Path, network: str) -> None:
     finally:
         if temp_path.exists():
             temp_path.unlink()
+
+
+def is_valid_keras_file(path: Path) -> bool:
+    """Check that a model path points to a real Keras zip file, not an LFS pointer."""
+    return path.is_file() and zipfile.is_zipfile(path)
 
 
 def preprocess_image(image_bytes: bytes, img_size: int):
