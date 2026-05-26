@@ -128,12 +128,20 @@ curl -F "file=@lesion.jpg" -F "network=Ensemble" http://127.0.0.1:8000/predict
 
 ## GitHub / Cloud Deploy
 
-Do not commit `venv/`, `dataset/`, or `Training_Sets/`. Upload trained model
-files as deployment artifacts or set the model path environment variables on the
-server. The app can start with:
+Do not commit `venv/`, `dataset/`, old training runs, or archived results. The
+three active model files are allowed through `.gitignore` and should be tracked
+with Git LFS:
+
+```text
+Training_Sets/EfficientNetB3/T_next/best_model.keras
+Training_Sets/ResNet50/R_next/best_model.keras
+Training_Sets/DenseNet121/D_next/best_model.keras
+```
+
+Render start command:
 
 ```bash
-uvicorn app.api:app --host 0.0.0.0 --port $PORT
+python -m uvicorn app.api:app --host 0.0.0.0 --port $PORT
 ```
 
 For VLM descriptions, the deployed service also needs access to Ollama/LLaVA via

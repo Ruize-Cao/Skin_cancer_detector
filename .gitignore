@@ -4,7 +4,22 @@ __pycache__/
 .pytest_cache/
 
 dataset/
-Training_Sets/
+Training_Sets/*
+!Training_Sets/EfficientNetB3/
+Training_Sets/EfficientNetB3/*
+!Training_Sets/EfficientNetB3/T_next/
+Training_Sets/EfficientNetB3/T_next/*
+!Training_Sets/EfficientNetB3/T_next/best_model.keras
+!Training_Sets/ResNet50/
+Training_Sets/ResNet50/*
+!Training_Sets/ResNet50/R_next/
+Training_Sets/ResNet50/R_next/*
+!Training_Sets/ResNet50/R_next/best_model.keras
+!Training_Sets/DenseNet121/
+Training_Sets/DenseNet121/*
+!Training_Sets/DenseNet121/D_next/
+Training_Sets/DenseNet121/D_next/*
+!Training_Sets/DenseNet121/D_next/best_model.keras
 Training_Sets_Archive/
 results/
 app_outputs/
