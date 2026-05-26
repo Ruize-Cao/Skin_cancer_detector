@@ -3,17 +3,23 @@ import os
 import uuid
 import urllib.error
 import urllib.request
+import zipfile
+from io import BytesIO
+from pathlib import PurePosixPath
 from typing import Annotated
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
 
-from app.report_agent import generate_markdown_report, markdown_to_pdf_bytes
+from app.report_agent import generate_batch_markdown_report, generate_markdown_report, markdown_to_pdf_bytes
 
 
 """Lightweight frontend/proxy app for Render deployments."""
 
 app = FastAPI(title="skin_cancer_detector_frontend")
+IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp"}
+MAX_BATCH_IMAGES = int(os.getenv("MAX_BATCH_IMAGES", "20"))
+MAX_ZIP_BYTES = int(os.getenv("MAX_ZIP_BYTES", str(100 * 1024 * 1024)))
 
 
 def get_inference_url() -> str:
@@ -53,8 +59,8 @@ def web_app():
     <h1>skin_cancer_detector</h1>
     <section>
       <form id="form">
-        <label for="file">Skin lesion image</label>
-        <input id="file" name="file" type="file" accept="image/*" required />
+        <label for="file">Skin lesion image(s) or zipped image folder</label>
+        <input id="file" name="files" type="file" accept="image/*,.zip" multiple required />
         <label for="network">Prediction network</label>
         <select id="network" name="network">
           <option value="EfficientNetB3">EfficientNetB3</option>
@@ -80,7 +86,7 @@ def web_app():
       predict.disabled = true;
       pdf.disabled = true;
       output.textContent = "Running prediction...";
-      const response = await fetch("/predict", { method: "POST", body: new FormData(form) });
+      const response = await fetch("/predict-batch", { method: "POST", body: new FormData(form) });
       latest = await response.json();
       output.textContent = JSON.stringify(latest, null, 2);
       predict.disabled = false;
@@ -127,10 +133,84 @@ async def predict(
 ):
     """Forward the upload to the Hugging Face Space inference API."""
     image_bytes = await file.read()
-    body, content_type = build_multipart_body(
+    return forward_image_to_inference(
         image_bytes=image_bytes,
         filename=file.filename or "upload.jpg",
         file_content_type=file.content_type or "application/octet-stream",
+        network=network,
+    )
+
+
+@app.post("/predict-batch")
+async def predict_batch(
+    files: list[UploadFile] = File(...),
+    network: Annotated[str, Form()] = "EfficientNetB3",
+):
+    """Process multiple images or zipped image folders in deterministic order."""
+    image_items = []
+    for upload in files:
+        image_items.extend(await extract_upload_images(upload))
+
+    if not image_items:
+        raise HTTPException(status_code=400, detail="No supported image files were uploaded.")
+    if len(image_items) > MAX_BATCH_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many images. Maximum batch size is {MAX_BATCH_IMAGES}.",
+        )
+
+    results = []
+    for index, item in enumerate(image_items, start=1):
+        data = forward_image_to_inference(
+            image_bytes=item["image_bytes"],
+            filename=item["filename"],
+            file_content_type=item["content_type"],
+            network=network,
+        )
+        data["case_number"] = index
+        data["case_id"] = f"Image {index:03d}"
+        data["filename"] = data.get("filename") or item["filename"]
+        results.append(data)
+
+    if len(results) == 1:
+        return results[0]
+
+    return {
+        "batch": True,
+        "total": len(results),
+        "network": network,
+        "results": results,
+        "text_report": generate_batch_markdown_report(results),
+    }
+
+
+@app.post("/report/pdf")
+def report_pdf(result: dict):
+    """Generate the report PDF locally from the inference result."""
+    if result.get("batch") and isinstance(result.get("results"), list):
+        markdown = result.get("text_report") or generate_batch_markdown_report(result["results"])
+        filename = "skin-lesion-ai-batch-report.pdf"
+    else:
+        markdown = result.get("text_report") or generate_markdown_report(result)
+        filename = "skin-lesion-ai-report.pdf"
+    return Response(
+        content=markdown_to_pdf_bytes(markdown),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+def forward_image_to_inference(
+    image_bytes: bytes,
+    filename: str,
+    file_content_type: str,
+    network: str,
+) -> dict:
+    """Forward one image to the configured inference API."""
+    body, content_type = build_multipart_body(
+        image_bytes=image_bytes,
+        filename=filename,
+        file_content_type=file_content_type,
         network=network,
     )
     request = urllib.request.Request(
@@ -142,25 +222,77 @@ async def predict(
 
     try:
         with urllib.request.urlopen(request, timeout=300) as response:
-            data = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")
         raise HTTPException(status_code=exc.code, detail=detail) from exc
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError) as exc:
         raise HTTPException(status_code=502, detail=f"Inference API request failed: {exc}") from exc
 
-    return data
+
+async def extract_upload_images(upload: UploadFile) -> list[dict]:
+    """Return image byte entries from an image upload or a zip archive."""
+    filename = upload.filename or "upload"
+    data = await upload.read()
+    if filename.lower().endswith(".zip"):
+        if len(data) > MAX_ZIP_BYTES:
+            raise HTTPException(status_code=400, detail="Uploaded zip file is too large.")
+        return extract_zip_images(data)
+
+    if not is_supported_image_name(filename):
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {filename}")
+
+    return [
+        {
+            "filename": filename,
+            "content_type": upload.content_type or guess_image_content_type(filename),
+            "image_bytes": data,
+        }
+    ]
 
 
-@app.post("/report/pdf")
-def report_pdf(result: dict):
-    """Generate the report PDF locally from the inference result."""
-    markdown = result.get("text_report") or generate_markdown_report(result)
-    return Response(
-        content=markdown_to_pdf_bytes(markdown),
-        media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=skin-lesion-ai-report.pdf"},
-    )
+def extract_zip_images(zip_bytes: bytes) -> list[dict]:
+    """Extract supported images from a zip archive, sorted by archive filename."""
+    try:
+        archive = zipfile.ZipFile(BytesIO(zip_bytes))
+    except zipfile.BadZipFile as exc:
+        raise HTTPException(status_code=400, detail="Invalid zip file.") from exc
+
+    items = []
+    with archive:
+        names = sorted(
+            name for name in archive.namelist()
+            if not name.endswith("/") and not PurePosixPath(name.replace("\\", "/")).name.startswith(".") and is_supported_image_name(name)
+        )
+        for name in names:
+            with archive.open(name) as image_file:
+                items.append(
+                    {
+                        "filename": name,
+                        "content_type": guess_image_content_type(name),
+                        "image_bytes": image_file.read(),
+                    }
+                )
+    return items
+
+
+def is_supported_image_name(filename: str) -> bool:
+    """Return True when a filename has a supported image extension."""
+    return PurePosixPath(filename.replace("\\", "/")).suffix.lower() in IMAGE_EXTENSIONS
+
+
+def guess_image_content_type(filename: str) -> str:
+    """Infer a simple image content type from the filename extension."""
+    suffix = PurePosixPath(filename.replace("\\", "/")).suffix.lower()
+    if suffix in {".jpg", ".jpeg"}:
+        return "image/jpeg"
+    if suffix == ".png":
+        return "image/png"
+    if suffix == ".webp":
+        return "image/webp"
+    if suffix == ".bmp":
+        return "image/bmp"
+    return "application/octet-stream"
 
 
 def build_multipart_body(

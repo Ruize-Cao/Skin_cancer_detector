@@ -1,6 +1,6 @@
 import unittest
 
-from app.report_agent import generate_markdown_report, markdown_to_pdf_bytes
+from app.report_agent import generate_batch_markdown_report, generate_markdown_report, markdown_to_pdf_bytes
 
 
 class ReportAgentTests(unittest.TestCase):
@@ -66,6 +66,31 @@ class ReportAgentTests(unittest.TestCase):
 
         self.assertIn("VLM image description is disabled", report)
         self.assertNotIn("Reason:", report)
+
+    def test_generate_batch_markdown_report_numbers_results(self):
+        report = generate_batch_markdown_report(
+            [
+                {
+                    "case_id": "Image 001",
+                    "filename": "a.jpg",
+                    "prediction": "NV",
+                    "confidence": 0.7,
+                    "probabilities": {"NV": 0.7, "MEL": 0.3},
+                },
+                {
+                    "case_id": "Image 002",
+                    "filename": "b.jpg",
+                    "prediction": "MEL",
+                    "confidence": 0.8,
+                    "probabilities": {"MEL": 0.8, "NV": 0.2},
+                },
+            ]
+        )
+
+        self.assertIn("# Skin Lesion AI Batch Report", report)
+        self.assertIn("## Image 001 - a.jpg", report)
+        self.assertIn("## Image 002 - b.jpg", report)
+        self.assertIn("Total images: 2", report)
 
 
 if __name__ == "__main__":

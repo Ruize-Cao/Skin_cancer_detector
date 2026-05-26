@@ -25,6 +25,10 @@ User uploads a skin lesion image
   -> report agent generates text + PDF report
 ```
 
+The web app also supports batch input: users can upload multiple image files or
+a zipped image folder. Batch reports are generated in order as `Image 001`,
+`Image 002`, and so on.
+
 Supported networks:
 
 ```text

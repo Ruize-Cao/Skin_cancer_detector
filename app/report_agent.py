@@ -56,6 +56,59 @@ def generate_markdown_report(result: dict[str, Any]) -> str:
     return "\n".join(lines).strip() + "\n"
 
 
+def generate_batch_markdown_report(results: list[dict[str, Any]]) -> str:
+    """Create one ordered report for multiple image prediction results."""
+    lines = [
+        "# Skin Lesion AI Batch Report",
+        "",
+        f"Total images: {len(results)}",
+        "",
+    ]
+
+    for index, result in enumerate(results, start=1):
+        case_id = result.get("case_id") or f"Image {index:03d}"
+        filename = result.get("filename") or "uploaded image"
+        prediction = str(result.get("prediction", "Unknown"))
+        confidence = _as_float(result.get("confidence"))
+        probabilities = result.get("probabilities") if isinstance(result.get("probabilities"), dict) else {}
+        image = result.get("image") if isinstance(result.get("image"), dict) else {}
+
+        lines.extend(
+            [
+                f"## {case_id} - {filename}",
+                "",
+                "### Uploaded Image",
+                _image_text(image),
+                "",
+                "### Prediction",
+                f"- Predicted class: {display_class_name(prediction)}",
+                f"- Model class code: {prediction}",
+                f"- Confidence: {_percent(confidence)}",
+                f"- Class note: {CLASS_EXPLANATIONS.get(prediction, 'Unknown class.')}",
+                "",
+                "### Result Summary",
+                _summary(prediction, confidence),
+                "",
+                "### Image Feature Extraction",
+                _feature_text(image, prediction),
+                "",
+                "### VLM Image Description",
+                _vlm_text(result),
+                "",
+                "### Class Probabilities",
+                "| Class | Probability |",
+                "| --- | ---: |",
+            ]
+        )
+
+        for label, score in sorted(probabilities.items(), key=lambda item: item[1], reverse=True):
+            lines.append(f"| {display_class_name(str(label))} ({label}) | {_percent(_as_float(score))} |")
+        lines.append("")
+
+    lines.extend(["## Disclaimer", DISCLAIMER])
+    return "\n".join(lines).strip() + "\n"
+
+
 def markdown_to_pdf_bytes(markdown: str) -> bytes:
     """Render Markdown-ish text to a small self-contained PDF byte string."""
     lines = _plain_lines(markdown)
