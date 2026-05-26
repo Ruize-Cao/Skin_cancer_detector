@@ -2,7 +2,8 @@
 
 Educational skin lesion image classification web app using TensorFlow/Keras CNN
 models, a lightweight multi-agent pipeline, and local Ollama/LLaVA visual
-description.
+description. The system uses Hugging Face Space as the backend for model loading and inference, 
+while Render hosts the lightweight web frontend.
 
 Test site:
 
