@@ -22,6 +22,9 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("ResNet50", response)
         self.assertIn("DenseNet121", response)
         self.assertIn("Ensemble", response)
+        self.assertIn("Add Image", response)
+        self.assertIn("Upload Zip", response)
+        self.assertIn("/predict-batch", response)
         self.assertNotIn("Train Model", response)
 
     def test_health_check_returns_core_state(self):
@@ -89,6 +92,33 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Image Feature Extraction", response["text_report"])
         self.assertIn("VLM Image Description", response["text_report"])
 
+    async def test_predict_batch_returns_ordered_results(self):
+        class DummyModel:
+            input_shape = (None, 16, 16, 3)
+
+            def __call__(self, images, training=False):
+                return tf.constant([[0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 0.0]])
+
+        image_bytes = tf.io.encode_jpeg(tf.zeros((8, 8, 3), dtype=tf.uint8)).numpy()
+        uploads = [
+            UploadFile(filename="a.jpg", file=BytesIO(image_bytes)),
+            UploadFile(filename="b.jpg", file=BytesIO(image_bytes)),
+        ]
+
+        with patch("app.api.get_model", return_value=DummyModel()), patch(
+            "app.api.get_model_path", return_value="dummy.keras"
+        ), patch(
+            "app.api.prediction_pipeline.vlm_agent.run",
+            return_value={"available": False, "reason": "mocked"},
+        ):
+            response = await api.predict_batch(uploads, network="EfficientNetB3")
+
+        self.assertTrue(response["batch"])
+        self.assertEqual(response["total"], 2)
+        self.assertEqual(response["results"][0]["case_id"], "Image 001")
+        self.assertEqual(response["results"][1]["case_id"], "Image 002")
+        self.assertIn("Skin Lesion AI Batch Report", response["text_report"])
+
     def test_report_endpoints_generate_markdown_and_pdf(self):
         result = {
             "prediction": "MEL",
@@ -100,6 +130,24 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(pdf.media_type, "application/pdf")
         self.assertTrue(pdf.body.startswith(b"%PDF-1.4"))
+
+    def test_report_endpoint_handles_batch_pdf(self):
+        pdf = api.report_pdf(
+            {
+                "batch": True,
+                "results": [
+                    {
+                        "case_id": "Image 001",
+                        "filename": "a.jpg",
+                        "prediction": "NV",
+                        "confidence": 0.7,
+                    }
+                ],
+            }
+        )
+
+        self.assertEqual(pdf.media_type, "application/pdf")
+        self.assertIn("skin-lesion-ai-batch-report.pdf", pdf.headers["content-disposition"])
 
 
 if __name__ == "__main__":

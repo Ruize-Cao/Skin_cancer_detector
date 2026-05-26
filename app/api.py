@@ -5,6 +5,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import HTMLResponse, Response
 
 from app.agents import MultiAgentPredictionPipeline
+from app.frontend import MAX_BATCH_IMAGES, extract_upload_images
 from app.predict import (
     DISCLAIMER,
     NETWORKS,
@@ -13,7 +14,7 @@ from app.predict import (
     load_prediction_model,
     normalize_network,
 )
-from app.report_agent import generate_markdown_report, markdown_to_pdf_bytes
+from app.report_agent import generate_batch_markdown_report, generate_markdown_report, markdown_to_pdf_bytes
 
 
 """FastAPI entrypoint for image upload, prediction, and PDF report download."""
@@ -55,7 +56,12 @@ def web_app():
     input, button, select { font: inherit; }
     input, select { width: 100%; margin: 8px 0 12px; box-sizing: border-box; }
     button { border: 0; border-radius: 6px; background: #1769aa; color: white; padding: 10px 14px; cursor: pointer; }
+    button.secondary { background: #566b84; }
     button:disabled { background: #8291a3; cursor: wait; }
+    .file-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .file-row input { margin: 0; }
+    .file-label { min-width: 86px; font-size: 14px; color: #334155; }
+    .upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
     pre { white-space: pre-wrap; background: #101820; color: #f4f7fb; padding: 14px; border-radius: 6px; overflow: auto; }
   </style>
 </head>
@@ -64,8 +70,13 @@ def web_app():
     <h1>skin_cancer_detector</h1>
     <section>
       <form id="form">
-        <label for="file">Skin lesion image</label>
-        <input id="file" name="file" type="file" accept="image/*" required />
+        <label>Skin lesion image</label>
+        <div id="imageInputs"></div>
+        <div id="zipInput"></div>
+        <div class="upload-actions">
+          <button id="addImage" class="secondary" type="button">Add Image</button>
+          <button id="addZip" class="secondary" type="button">Upload Zip</button>
+        </div>
         <label for="network">Prediction network</label>
         <select id="network" name="network">
           <option value="EfficientNetB3">EfficientNetB3</option>
@@ -84,14 +95,37 @@ def web_app():
     const output = document.getElementById("output");
     const predict = document.getElementById("predict");
     const pdf = document.getElementById("pdf");
+    const imageInputs = document.getElementById("imageInputs");
+    const zipInput = document.getElementById("zipInput");
+    const addImage = document.getElementById("addImage");
+    const addZip = document.getElementById("addZip");
     let latest = null;
+    let imageCount = 0;
+
+    function addImageInput() {
+      imageCount += 1;
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.innerHTML = `<span class="file-label">Image ${String(imageCount).padStart(3, "0")}</span>
+        <input name="files" type="file" accept="image/*" />`;
+      imageInputs.appendChild(row);
+    }
+
+    function addZipInput() {
+      zipInput.innerHTML = `<div class="file-row"><span class="file-label">Zip file</span>
+        <input name="files" type="file" accept=".zip" /></div>`;
+    }
+
+    addImage.addEventListener("click", addImageInput);
+    addZip.addEventListener("click", addZipInput);
+    addImageInput();
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       predict.disabled = true;
       pdf.disabled = true;
       output.textContent = "Running prediction...";
-      const response = await fetch("/predict", { method: "POST", body: new FormData(form) });
+      const response = await fetch("/predict-batch", { method: "POST", body: new FormData(form) });
       latest = await response.json();
       output.textContent = JSON.stringify(latest, null, 2);
       predict.disabled = false;
@@ -163,12 +197,67 @@ async def predict(
     return {"filename": file.filename, **result}
 
 
+@app.post("/predict-batch")
+async def predict_batch(
+    files: list[UploadFile] = File(...),
+    network: Annotated[str, Form()] = "EfficientNetB3",
+):
+    """Run local model inference for multiple images or zipped image folders."""
+    try:
+        network = normalize_network(network)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    image_items = []
+    for upload in files:
+        image_items.extend(await extract_upload_images(upload))
+
+    if not image_items:
+        raise HTTPException(status_code=400, detail="No supported image files were uploaded.")
+    if len(image_items) > MAX_BATCH_IMAGES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many images. Maximum batch size is {MAX_BATCH_IMAGES}.",
+        )
+
+    prediction_model = get_model(network)
+    results = []
+    for index, item in enumerate(image_items, start=1):
+        result = prediction_pipeline.run(
+            prediction_model,
+            item["image_bytes"],
+            item["filename"],
+            item["content_type"],
+            network,
+            str(get_model_path(network)),
+        )
+        result["case_number"] = index
+        result["case_id"] = f"Image {index:03d}"
+        results.append({"filename": item["filename"], **result})
+
+    if len(results) == 1:
+        return results[0]
+
+    return {
+        "batch": True,
+        "total": len(results),
+        "network": network,
+        "results": results,
+        "text_report": generate_batch_markdown_report(results),
+    }
+
+
 @app.post("/report/pdf")
 def report_pdf(result: dict):
     """Convert an existing prediction result into a downloadable PDF report."""
-    markdown = result.get("text_report") or generate_markdown_report(result)
+    if result.get("batch") and isinstance(result.get("results"), list):
+        markdown = result.get("text_report") or generate_batch_markdown_report(result["results"])
+        filename = "skin-lesion-ai-batch-report.pdf"
+    else:
+        markdown = result.get("text_report") or generate_markdown_report(result)
+        filename = "skin-lesion-ai-report.pdf"
     return Response(
         content=markdown_to_pdf_bytes(markdown),
         media_type="application/pdf",
-        headers={"Content-Disposition": "attachment; filename=skin-lesion-ai-report.pdf"},
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
     )

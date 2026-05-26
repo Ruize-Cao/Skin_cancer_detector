@@ -50,7 +50,12 @@ def web_app():
     input, button, select { font: inherit; }
     input, select { width: 100%; margin: 8px 0 12px; box-sizing: border-box; }
     button { border: 0; border-radius: 6px; background: #1769aa; color: white; padding: 10px 14px; cursor: pointer; }
+    button.secondary { background: #566b84; }
     button:disabled { background: #8291a3; cursor: wait; }
+    .file-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+    .file-row input { margin: 0; }
+    .file-label { min-width: 86px; font-size: 14px; color: #334155; }
+    .upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
     pre { white-space: pre-wrap; background: #101820; color: #f4f7fb; padding: 14px; border-radius: 6px; overflow: auto; }
   </style>
 </head>
@@ -59,8 +64,13 @@ def web_app():
     <h1>skin_cancer_detector</h1>
     <section>
       <form id="form">
-        <label for="file">Skin lesion image(s) or zipped image folder</label>
-        <input id="file" name="files" type="file" accept="image/*,.zip" multiple required />
+        <label>Skin lesion image(s) or zipped image folder</label>
+        <div id="imageInputs"></div>
+        <div id="zipInput"></div>
+        <div class="upload-actions">
+          <button id="addImage" class="secondary" type="button">Add Image</button>
+          <button id="addZip" class="secondary" type="button">Upload Zip</button>
+        </div>
         <label for="network">Prediction network</label>
         <select id="network" name="network">
           <option value="EfficientNetB3">EfficientNetB3</option>
@@ -79,7 +89,30 @@ def web_app():
     const output = document.getElementById("output");
     const predict = document.getElementById("predict");
     const pdf = document.getElementById("pdf");
+    const imageInputs = document.getElementById("imageInputs");
+    const zipInput = document.getElementById("zipInput");
+    const addImage = document.getElementById("addImage");
+    const addZip = document.getElementById("addZip");
     let latest = null;
+    let imageCount = 0;
+
+    function addImageInput() {
+      imageCount += 1;
+      const row = document.createElement("div");
+      row.className = "file-row";
+      row.innerHTML = `<span class="file-label">Image ${String(imageCount).padStart(3, "0")}</span>
+        <input name="files" type="file" accept="image/*" />`;
+      imageInputs.appendChild(row);
+    }
+
+    function addZipInput() {
+      zipInput.innerHTML = `<div class="file-row"><span class="file-label">Zip file</span>
+        <input name="files" type="file" accept=".zip" /></div>`;
+    }
+
+    addImage.addEventListener("click", addImageInput);
+    addZip.addEventListener("click", addZipInput);
+    addImageInput();
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -232,7 +265,9 @@ def forward_image_to_inference(
 
 async def extract_upload_images(upload: UploadFile) -> list[dict]:
     """Return image byte entries from an image upload or a zip archive."""
-    filename = upload.filename or "upload"
+    if not upload.filename:
+        return []
+    filename = upload.filename
     data = await upload.read()
     if filename.lower().endswith(".zip"):
         if len(data) > MAX_ZIP_BYTES:

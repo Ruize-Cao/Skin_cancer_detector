@@ -16,7 +16,8 @@ class FrontendTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("skin_cancer_detector", html)
         self.assertIn("EfficientNetB3", html)
         self.assertIn("Ensemble", html)
-        self.assertIn("multiple", html)
+        self.assertIn("Add Image", html)
+        self.assertIn("Upload Zip", html)
         self.assertIn("/predict-batch", html)
 
     def test_health_check_reports_proxy_mode(self):
@@ -102,6 +103,11 @@ class FrontendTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([item["filename"] for item in items], ["b.png", "folder/a.jpg"])
         self.assertEqual(items[0]["content_type"], "image/png")
         self.assertEqual(items[1]["content_type"], "image/jpeg")
+
+    async def test_extract_upload_images_skips_empty_file_input(self):
+        upload = UploadFile(filename="", file=BytesIO(b""))
+
+        self.assertEqual(await frontend.extract_upload_images(upload), [])
 
     def test_build_multipart_body_includes_network_and_file(self):
         body, content_type = frontend.build_multipart_body(
