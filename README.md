@@ -157,12 +157,21 @@ model files are missing.
 
 ## Deployment Split
 
-The project can be deployed as two smaller services:
+The cloud version uses Hugging Face Space for model inference and Render for the
+public web frontend:
 
 ```text
-Hugging Face Space: app.api runs TensorFlow inference and loads the models
-Render:             app.frontend serves the web UI and forwards images to Space
+User browser
+  -> Render frontend (app.frontend)
+  -> Hugging Face Space inference API (app.api)
+  -> Hugging Face model files (.keras)
+  -> Hugging Face Space returns prediction/report JSON
+  -> Render displays result and generates downloadable PDF
 ```
+
+Render stays lightweight and does not load TensorFlow models. Hugging Face Space
+runs TensorFlow inference, downloads the hosted model files when needed, and
+returns the prediction result to Render.
 
 Set `INFERENCE_API_URL` on Render to the Hugging Face Space URL.
 
