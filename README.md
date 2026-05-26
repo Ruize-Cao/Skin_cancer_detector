@@ -91,6 +91,14 @@ If port 8000 is busy:
 uvicorn app.api:app --reload --port 8001
 ```
 
+## VLM Availability
+
+Local deployment can use Ollama + LLaVA for VLM image-description testing when
+Ollama is running on the same machine. In the cloud deployment, VLM is currently
+disabled because the project does not call a hosted VLM API. The online version
+still supports CNN prediction, local image feature extraction, safety text, and
+PDF report generation.
+
 For the lightweight Render frontend, run:
 
 ```bash
