@@ -18,6 +18,8 @@ class FrontendTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Ensemble", html)
         self.assertIn("Add Image", html)
         self.assertIn("Upload Zip", html)
+        self.assertIn("Remove", html)
+        self.assertIn("renumberImages", html)
         self.assertIn("/predict-batch", html)
 
     def test_health_check_reports_proxy_mode(self):

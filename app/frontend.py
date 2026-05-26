@@ -51,9 +51,10 @@ def web_app():
     input, select { width: 100%; margin: 8px 0 12px; box-sizing: border-box; }
     button { border: 0; border-radius: 6px; background: #1769aa; color: white; padding: 10px 14px; cursor: pointer; }
     button.secondary { background: #566b84; }
+    button.remove { background: #9f3347; padding: 8px 10px; }
     button:disabled { background: #8291a3; cursor: wait; }
     .file-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
-    .file-row input { margin: 0; }
+    .file-row input { margin: 0; flex: 1; }
     .file-label { min-width: 86px; font-size: 14px; color: #334155; }
     .upload-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
     pre { white-space: pre-wrap; background: #101820; color: #f4f7fb; padding: 14px; border-radius: 6px; overflow: auto; }
@@ -96,18 +97,34 @@ def web_app():
     let latest = null;
     let imageCount = 0;
 
+    function renumberImages() {
+      [...imageInputs.querySelectorAll(".file-row")].forEach((row, index) => {
+        row.querySelector(".file-label").textContent = `Image ${String(index + 1).padStart(3, "0")}`;
+      });
+      imageCount = imageInputs.querySelectorAll(".file-row").length;
+    }
+
     function addImageInput() {
       imageCount += 1;
       const row = document.createElement("div");
       row.className = "file-row";
       row.innerHTML = `<span class="file-label">Image ${String(imageCount).padStart(3, "0")}</span>
-        <input name="files" type="file" accept="image/*" />`;
+        <input name="files" type="file" accept="image/*" />
+        <button class="remove" type="button">Remove</button>`;
+      row.querySelector(".remove").addEventListener("click", () => {
+        row.remove();
+        renumberImages();
+      });
       imageInputs.appendChild(row);
     }
 
     function addZipInput() {
       zipInput.innerHTML = `<div class="file-row"><span class="file-label">Zip file</span>
-        <input name="files" type="file" accept=".zip" /></div>`;
+        <input name="files" type="file" accept=".zip" />
+        <button class="remove" type="button">Remove</button></div>`;
+      zipInput.querySelector(".remove").addEventListener("click", () => {
+        zipInput.innerHTML = "";
+      });
     }
 
     addImage.addEventListener("click", addImageInput);

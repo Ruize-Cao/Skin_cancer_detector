@@ -24,6 +24,8 @@ class ApiTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Ensemble", response)
         self.assertIn("Add Image", response)
         self.assertIn("Upload Zip", response)
+        self.assertIn("Remove", response)
+        self.assertIn("renumberImages", response)
         self.assertIn("/predict-batch", response)
         self.assertNotIn("Train Model", response)
 

@@ -26,8 +26,9 @@ User uploads a skin lesion image
 ```
 
 The web app also supports batch input. Users can click `Add Image` to add image
-files one by one, or click `Upload Zip` to submit a zipped image folder. Batch
-reports are generated in order as `Image 001`, `Image 002`, and so on.
+files one by one, remove selected inputs, or click `Upload Zip` to submit a
+zipped image folder. Batch reports are generated in order as `Image 001`,
+`Image 002`, and so on.
 
 Supported networks:
 
