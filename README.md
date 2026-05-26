@@ -91,7 +91,7 @@ If port 8000 is busy:
 uvicorn app.api:app --reload --port 8001
 ```
 
-For a lightweight frontend-only deployment, run:
+For the lightweight Render frontend, run:
 
 ```bash
 INFERENCE_API_URL=https://your-huggingface-space.hf.space uvicorn app.frontend:app --reload
@@ -153,9 +153,9 @@ The project can be deployed as two smaller services:
 
 ```text
 Hugging Face Space: app.api runs TensorFlow inference and loads the models
-Render/Vercel:      app.frontend serves the web UI and forwards images to Space
+Render:             app.frontend serves the web UI and forwards images to Space
 ```
 
-Set `INFERENCE_API_URL` on Render or Vercel to the Hugging Face Space URL.
+Set `INFERENCE_API_URL` on Render to the Hugging Face Space URL.
 
 View `Training_Report.docx` for more information.
