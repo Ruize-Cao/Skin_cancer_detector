@@ -1,4 +1,7 @@
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from tests.tf_test_utils import disable_tensorflow_gpu_for_tests
 
@@ -13,6 +16,7 @@ from app.predict import (
     extract_visual_features,
     get_available_networks,
     get_model_path,
+    ensure_model_file,
     normalize_network,
     describe_uploaded_image,
     predict_image,
@@ -109,6 +113,31 @@ class PredictTests(unittest.TestCase):
         self.assertIn("dominant_color", features)
         self.assertIn("edge_strength", features)
         self.assertIn("asymmetry", features)
+
+    def test_ensure_model_file_downloads_when_url_is_configured(self):
+        class FakeResponse:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, traceback):
+                return False
+
+            def read(self, size=-1):
+                if getattr(self, "done", False):
+                    return b""
+                self.done = True
+                return b"model-bytes"
+
+        with TemporaryDirectory() as tmp_dir:
+            model_path = Path(tmp_dir) / "best_model.keras"
+            with patch.dict(
+                "os.environ",
+                {"SKIN_CANCER_EFFICIENTNET_MODEL_URL": "https://example.com/model.keras"},
+            ):
+                with patch("urllib.request.urlopen", return_value=FakeResponse()):
+                    ensure_model_file(model_path, "EfficientNetB3")
+
+            self.assertEqual(model_path.read_bytes(), b"model-bytes")
 
 
 if __name__ == "__main__":

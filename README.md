@@ -118,4 +118,27 @@ Training output is saved to:
 Training_Sets/<network>/<run_name>/
 ```
 
-View Taining_Report for more information
+## Upload Trained Models
+
+The trained `.keras` model files are large, so they are not stored directly in
+the GitHub repository. After training, upload the active models to Hugging Face
+with:
+
+```bash
+pip install huggingface_hub
+hf auth login
+python upload_models.py
+```
+
+The script uploads:
+
+```text
+Training_Sets/EfficientNetB3/T_next/best_model.keras -> EfficientNetB3/best_model.keras
+Training_Sets/ResNet50/R_next/best_model.keras       -> ResNet50/best_model.keras
+Training_Sets/DenseNet121/D_next/best_model.keras    -> DenseNet121/best_model.keras
+```
+
+The deployed app can download these model files from Hugging Face when local
+model files are missing.
+
+View `Training_Report.docx` for more information.

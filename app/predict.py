@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+import urllib.request
 
 import numpy as np
 import tensorflow as tf
@@ -14,16 +15,19 @@ from training.constants import CLASS_NAMES
 NETWORKS = {
     "EfficientNetB3": {
         "env": "SKIN_CANCER_EFFICIENTNET_MODEL_PATH",
+        "url_env": "SKIN_CANCER_EFFICIENTNET_MODEL_URL",
         "path": Path("Training_Sets") / "EfficientNetB3" / "T_next" / "best_model.keras",
         "fallback_path": Path("Training_Sets") / "EfficientNetB3" / "T7" / "best_model.keras",
     },
     "ResNet50": {
         "env": "SKIN_CANCER_RESNET_MODEL_PATH",
+        "url_env": "SKIN_CANCER_RESNET_MODEL_URL",
         "path": Path("Training_Sets") / "ResNet50" / "R_next" / "best_model.keras",
         "fallback_path": Path("Training_Sets") / "ResNet50" / "R1" / "best_model.keras",
     },
     "DenseNet121": {
         "env": "SKIN_CANCER_DENSENET_MODEL_PATH",
+        "url_env": "SKIN_CANCER_DENSENET_MODEL_URL",
         "path": Path("Training_Sets") / "DenseNet121" / "D_next" / "best_model.keras",
         "fallback_path": Path("Training_Sets") / "DenseNet121" / "D1" / "best_model.keras",
     },
@@ -79,9 +83,40 @@ def load_prediction_model(model_path: Path | None = None, network: str | None = 
         return models
 
     path = model_path or get_model_path(network)
+    ensure_model_file(path, network)
     if not path.exists():
         return None
     return tf.keras.models.load_model(path, compile=False)
+
+
+def ensure_model_file(path: Path, network: str) -> None:
+    """Download a missing model from an external URL configured in the environment."""
+    if path.exists() or network == ENSEMBLE_NETWORK:
+        return
+
+    url = os.getenv(NETWORKS[network]["url_env"])
+    if not url:
+        return
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp_path = path.with_suffix(path.suffix + ".download")
+    request = urllib.request.Request(url)
+    token = os.getenv("HF_TOKEN") or os.getenv("HUGGINGFACE_TOKEN")
+    if token:
+        request.add_header("Authorization", f"Bearer {token}")
+
+    try:
+        with urllib.request.urlopen(request, timeout=300) as response:
+            with open(temp_path, "wb") as output:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    output.write(chunk)
+        temp_path.replace(path)
+    finally:
+        if temp_path.exists():
+            temp_path.unlink()
 
 
 def preprocess_image(image_bytes: bytes, img_size: int):
