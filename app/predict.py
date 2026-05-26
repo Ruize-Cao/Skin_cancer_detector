@@ -17,23 +17,33 @@ NETWORKS = {
     "EfficientNetB3": {
         "env": "SKIN_CANCER_EFFICIENTNET_MODEL_PATH",
         "url_env": "SKIN_CANCER_EFFICIENTNET_MODEL_URL",
-        "path": Path("Training_Sets") / "EfficientNetB3" / "T_next" / "best_model.keras",
-        "fallback_path": Path("Training_Sets") / "EfficientNetB3" / "T7" / "best_model.keras",
+        "path": ("Training_Sets", "EfficientNetB3", "T_next", "best_model.keras"),
+        "fallback_path": ("Training_Sets", "EfficientNetB3", "T7", "best_model.keras"),
     },
     "ResNet50": {
         "env": "SKIN_CANCER_RESNET_MODEL_PATH",
         "url_env": "SKIN_CANCER_RESNET_MODEL_URL",
-        "path": Path("Training_Sets") / "ResNet50" / "R_next" / "best_model.keras",
-        "fallback_path": Path("Training_Sets") / "ResNet50" / "R1" / "best_model.keras",
+        "path": ("Training_Sets", "ResNet50", "R_next", "best_model.keras"),
+        "fallback_path": ("Training_Sets", "ResNet50", "R1", "best_model.keras"),
     },
     "DenseNet121": {
         "env": "SKIN_CANCER_DENSENET_MODEL_PATH",
         "url_env": "SKIN_CANCER_DENSENET_MODEL_URL",
-        "path": Path("Training_Sets") / "DenseNet121" / "D_next" / "best_model.keras",
-        "fallback_path": Path("Training_Sets") / "DenseNet121" / "D1" / "best_model.keras",
+        "path": ("Training_Sets", "DenseNet121", "D_next", "best_model.keras"),
+        "fallback_path": ("Training_Sets", "DenseNet121", "D1", "best_model.keras"),
     },
 }
 ENSEMBLE_NETWORK = "Ensemble"
+
+
+def model_storage_path(*parts: str) -> Path:
+    """Return the model storage path, using /tmp on serverless platforms."""
+    base_dir = os.getenv("SKIN_CANCER_MODEL_DIR")
+    if base_dir:
+        return Path(base_dir).joinpath(*parts)
+    if os.getenv("VERCEL"):
+        return Path("/tmp") / "skin-cancer-ai" / Path(*parts)
+    return Path(*parts)
 
 
 def normalize_network(network: str | None) -> str:
@@ -66,9 +76,10 @@ def get_model_path(network: str | None = None) -> Path:
     if default_env_path and network == "EfficientNetB3":
         return Path(default_env_path)
 
-    if config["path"].exists():
-        return config["path"]
-    return config["fallback_path"]
+    path = model_storage_path(*config["path"])
+    if path.exists():
+        return path
+    return model_storage_path(*config["fallback_path"])
 
 
 def load_prediction_model(model_path: Path | None = None, network: str | None = None):
